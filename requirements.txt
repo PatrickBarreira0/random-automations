@@ -3,4 +3,6 @@ pyautoit
 opencv-python
 numpy
 keyboard
+pytesseract
+Pillow
 

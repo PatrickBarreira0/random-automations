@@ -6,10 +6,13 @@ import time
 import random
 import threading
 import keyboard
+import pytesseract
+import re
 
 CONFIDENCE_LEVEL = 0.8
 STOP_KEY = 'k'
 running = True
+money_amounts = []
 
 def stop_key_listener():
     global running
@@ -57,6 +60,76 @@ def long_sleep_with_stop_check(duration_seconds):
             return
         time.sleep(0.1)
 
+def extract_money_amount():
+    try:
+        time.sleep(0.5)
+        screenshot = pyautogui.screenshot()
+        screenshot_cv = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+        
+        yes_button_found = False
+        yes_button_x, yes_button_y = 0, 0
+        
+        try:
+            yes_template = cv2.imread("images/confirm_yes_button.png", cv2.IMREAD_COLOR)
+            if yes_template is not None:
+                result = cv2.matchTemplate(screenshot_cv, yes_template, cv2.TM_CCOEFF_NORMED)
+                _, max_val, _, max_loc = cv2.minMaxLoc(result)
+                if max_val >= CONFIDENCE_LEVEL:
+                    template_width = yes_template.shape[1]
+                    yes_button_x = max_loc[0] + template_width // 2
+                    yes_button_y = max_loc[1]
+                    yes_button_found = True
+        except:
+            pass
+        
+        if not yes_button_found:
+            return None
+        
+        gray = cv2.cvtColor(screenshot_cv, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        roi_width = 400
+        x1 = max(0, yes_button_x - roi_width // 2 + 100)
+        y1 = max(0, yes_button_y - 70)
+        x2 = min(screenshot_cv.shape[1], yes_button_x + roi_width // 2 + 100)
+        y2 = min(screenshot_cv.shape[0], yes_button_y + 60)
+        
+        if y2 <= y1 or x2 <= x1:
+            return None
+        
+        roi = thresh[y1:y2, x1:x2]
+        roi_resized = cv2.resize(roi, (roi.shape[1] * 2, roi.shape[0] * 2), interpolation=cv2.INTER_CUBIC)
+        
+        try:
+            custom_config = r'--oem 3 --psm 8 -c tessedit_char_whitelist=0123456789.,'
+            text = pytesseract.image_to_string(roi_resized, config=custom_config)
+            
+            if not text.strip():
+                custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789.,'
+                text = pytesseract.image_to_string(roi_resized, config=custom_config)
+            
+            if not text.strip():
+                text = pytesseract.image_to_string(roi_resized, config='--oem 3 --psm 6')
+        except:
+            return None
+        
+        pattern = r'\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+\.\d+'
+        matches = re.findall(pattern, text)
+        
+        if matches:
+            for match in matches:
+                try:
+                    amount_str = match.replace(',', '')
+                    amount = float(amount_str)
+                    if amount > 0:
+                        return amount
+                except ValueError:
+                    continue
+        
+        return None
+    except:
+        return None
+
 def main():
     print("Starting in 5 seconds. OPEN ROBLOX WINDOW.")
     print("Make sure you are NOT in shift lock.")
@@ -71,7 +144,7 @@ def main():
 
         print("[ACTION] Mining...")
         autoit.mouse_down("left")
-        long_sleep_with_stop_check(random.uniform(600, 720))
+        long_sleep_with_stop_check(random.uniform(900, 1000))
         autoit.mouse_up("left")
         if not running: break
         time.sleep(1)
@@ -104,6 +177,10 @@ def main():
             continue
         time.sleep(1)
 
+        money = extract_money_amount()
+        if money is not None:
+            money_amounts.append(money)
+
         if not find_and_click("confirm_yes_button.png"):
             print("[WARN] Confirm button not found. Resetting by clicking Exit.")
             find_and_click("exit_button.png", timeout=2)
@@ -119,6 +196,16 @@ def main():
         time.sleep(random.uniform(4, 5))
 
     print("\n[INFO] Script has been stopped by the user.")
+    
+    if money_amounts:
+        total = sum(money_amounts)
+        print(f"\n{'='*50}")
+        print(f"TOTAL CYCLES: {len(money_amounts)}")
+        print(f"TOTAL MONEY EARNED: {total:,.2f}")
+        print(f"AVERAGE PER CYCLE: {total/len(money_amounts):,.2f}")
+        print(f"{'='*50}")
+    else:
+        print("\n[INFO] No money amounts were recorded.")
 
 if __name__ == "__main__":
     listener_thread = threading.Thread(target=stop_key_listener, daemon=True)
