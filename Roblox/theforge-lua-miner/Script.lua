@@ -87,7 +87,6 @@ function MineRock(rock)
     end
 end
 
--- 5. MAIN LOOP
 function StartLoop()
     task.spawn(function()
         while getgenv().AutoMineEnabled do
@@ -122,7 +121,6 @@ function StartLoop()
     end)
 end
 
--- 6. GUI SETUP
 local ScreenGui = Instance.new("ScreenGui")
 local ToggleBtn = Instance.new("TextButton")
 local UICorner = Instance.new("UICorner")
@@ -143,7 +141,6 @@ ToggleBtn.TextSize = 20
 UICorner.CornerRadius = UDim.new(0, 8)
 UICorner.Parent = ToggleBtn
 
--- 7. BUTTON EVENT
 ToggleBtn.MouseButton1Click:Connect(function()
     getgenv().AutoMineEnabled = not getgenv().AutoMineEnabled
     
