@@ -39,3 +39,4 @@ def find_and_click(template_image, confidence=CONFIDENCE_LEVEL, timeout=5):
     print(f"[WARN] Could not find '{template_image}' on screen after {timeout} seconds.")
     return False
 
+

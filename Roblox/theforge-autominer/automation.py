@@ -103,3 +103,4 @@ def run_automation():
     
     return money_amounts
 
+
